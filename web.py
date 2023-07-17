@@ -2,8 +2,11 @@ import requests
 import os
 from tqdm import tqdm
 from flask import Flask, render_template, request
+from flask_socketio import SocketIO
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret_key'
+socketio = SocketIO(app)
 
 def fetch_models(query_params):
     url = "https://civitai.com/api/v1/models"
@@ -78,7 +81,7 @@ def index():
             query_params["period"] = period
 
         models = fetch_models(query_params)
-        
+
         # 폴더 생성
         if 'username' in query_params:
             folder_name = query_params['username']
@@ -90,7 +93,31 @@ def index():
             # 'username', 'tag', 'query' 중 어떤 값도 존재하지 않을 경우의 처리
             folder_name = "default_folder_name"
         os.makedirs(folder_name, exist_ok=True)
-        
+
+        # Emit a socket event to the client to inform about the progress
+        def emit_progress(progress, total):
+            socketio.emit('progress', {'progress': progress, 'total': total}, namespace='/')
+
+        # Emit a socket event to the client to inform about the completion
+        def emit_progress_complete():
+            socketio.emit('progress_complete', namespace='/')
+
+        @socketio.on('connect', namespace='/')
+        def handle_connect():
+            print('SocketIO connected')
+
+        @socketio.on('disconnect', namespace='/')
+        def handle_disconnect():
+            print('SocketIO disconnected')
+
+        @socketio.on('progress_request', namespace='/')
+        def handle_progress_request():
+            total_models = len(models)
+            socketio.start_background_task(target=emit_progress, progress=0, total=total_models)
+            socketio.start_background_task(target=emit_progress_complete)
+
+        socketio.emit('progress_request', namespace='/')
+
         # 다운로드 진행 상황 표시를 위한 tqdm 설정
         progress_bar = tqdm(models, desc="Downloading", unit="file")
         download_urls = []
@@ -103,6 +130,7 @@ def index():
             except:
                 pass
             print(download_urls)
+
         for url in download_urls:
             response = requests.get(url, stream=True)
             if response.status_code == 200:
@@ -129,15 +157,16 @@ def index():
                             file.write(data)
                             downloaded_size += len(data)
                             progress_bar.set_postfix({"Progress": f"{downloaded_size}/{total_size} bytes"})
+                            socketio.start_background_task(target=emit_progress, progress=downloaded_size, total=total_size)
 
                     progress_bar.set_postfix({"Progress": "Complete"})
                     print(f"다운로드 완료: {file_path}")
             else:
                 print(f"파일 다운로드 실패: {url}")
-        
+
         return render_template('results.html', models=models)
-    
+
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run()
+    socketio.run(app)

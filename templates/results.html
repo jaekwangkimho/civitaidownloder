@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Model Fetcher - Results</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>Model Fetcher - Results</h1>
+    <div class="container">
+        {% if models %}
+            {% for model in models %}
+                <div class="model">
+                    <h3>{{ model.name }}</h3>
+                    <p>Author: {{ model.author }}</p>
+                    <p>Description: {{ model.description }}</p>
+                    {% if model.download_success %}
+                        <p class="success">Download successful</p>
+                    {% else %}
+                        <p class="failure">Download failed</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No models found.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

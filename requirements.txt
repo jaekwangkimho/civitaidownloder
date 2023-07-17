@@ -1,3 +1,4 @@
 tqdm
 flask
 requests
+flask_socketio

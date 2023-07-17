@@ -2,18 +2,45 @@
 <html>
 <head>
     <title>Model Fetcher</title>
-    <link rel="stylesheet" type="text/css" href="/static/css/styles.css">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="//code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js" integrity="sha512-aMGMvNYu8Ue4G+fHa359jcPb1u+ytAF+P2SCb+PxrjCdO3n3ZTxJ30zuH39rimUggmTwmh2u7wvQsDTHESnmfQ==" crossorigin="anonymous"></script>
+    <script>
+        $(document).ready(function() {
+            var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+            socket.on('connect', function() {
+                console.log('SocketIO connected');
+            });
+
+            socket.on('progress', function(data) {
+                var progress = data.progress;
+                var total = data.total;
+                var percentage = Math.floor(progress / total * 100);
+                $('#progress').text(percentage + '%');
+            });
+
+            socket.on('progress_complete', function() {
+                $('#progress').text('Complete');
+            });
+
+            $('form').on('submit', function() {
+                $('#progress').text('0%');
+                socket.emit('progress_request');
+            });
+        });
+    </script>
 </head>
 <body>
     <h1>Model Fetcher</h1>
     <div class="container">
         <form action="/" method="post">
             <label for="limit">Limit:</label>
-            <input type="range" id="limitSlider" name="limit" min="1" max="100" oninput="limitNumber.value = limitSlider.value" required>
-            <input type="number" id="limitNumber" name="limit" min="1" max="100" oninput="limitSlider.value = limitNumber.value" required>
-           
+            <input type="range" id="limitSlider" name="limit" min="1" max="100" oninput="limitNumber.value = limitSlider.value" value="100" required>
+            <input type="number" id="limitNumber" name="limit" min="1" max="100" oninput="limitSlider.value = limitNumber.value" value="100" required>
+
             <label for="page">Page:</label>
-            <input type="number" id="page" name="page" min="1" required>
+            <input type="number" id="page" name="page" min="1" value="1" required>
 
             <label for="query">Query:</label>
             <input type="text" id="query" name="query">
@@ -55,6 +82,8 @@
 
             <input type="submit" value="Fetch Models">
         </form>
+
+        <p>Progress: <span id="progress">0%</span></p>
     </div>
 </body>
 </html>
